@@ -16,7 +16,7 @@ int main(int argc, char **argv)
         snprintf(       instance_file,
                         1024,
                         "%s",
-                        "instance1.csv");
+                        "instance3.csv");
 
 	char c;
         while ((c=getopt (argc, argv,"F:h")) != EOF)
@@ -47,13 +47,21 @@ int main(int argc, char **argv)
 	read_TP1_instance(fin,&data);
 	fclose(fin);
 
+
 	//execute your solution methods on the instance you just read
 	//TP1
-	KP_greedy(&data);
-	KP_LP(&data);
+	//KP_greedy(&data);
+	//KP_LP(&data);
+
+
 	//TP2
-	// dynamic programmation
-    Recursive_Dynamic_programming(&data);
+	//dynamic programmation
+    //Recursive_Dynamic_programming(&data);
+    //TP3
+    // Perform variable preprocessing
+    knapsack_variable_preprocessing(&data);
+
+
 
 
 	return rval;

@@ -170,6 +170,7 @@ int KP_LP(dataSet* dsptr)
             x[i] = 0;
         }
 
+    int p = -1 ;
     for (int i = 0; i < n && b > 0; i++) {
       		  // x[j] ← min{¯b/a[j], 1};
           if (items[i].weight <= b) {
@@ -177,11 +178,14 @@ int KP_LP(dataSet* dsptr)
               b -= items[i].weight;
 
           } else {
+               p = i+1;
               // Otherwise, take a fraction of it
               x[i] = (float)b / items[i].weight;
               b = 0; // The knapsack is full now
           }
       }
+
+      printf("la valeur de p critique = %d", p);
 
     //Output the result (fraction of each item taken)
     printf("Selected items (fractions):\n");
@@ -200,7 +204,7 @@ int KP_LP(dataSet* dsptr)
     free(items);
     free(x);
 
-	return rval;
+	return rval, p;
 }
 
 //------------------------------------------------------------------------------TP2-----------------------------------------------------------------------------------------------------------
@@ -231,6 +235,71 @@ int Recursive_Dynamic_programming(dataSet* dsptr) {
 
     return max_value;
 }
+
+
+//--------------------------------------------------------------- TP3 --------------------------------------------------------------------
+
+// Fonction pour appliquer l'algorithme Knapsack - Variable Preprocessing
+void knapsack_variable_preprocessing(dataSet* dsptr) {
+    int n = dsptr->n; // Nombre d'objets
+    int b = dsptr->b; // Capacité du sac-à-dos
+    int p;            // Indice de l'objet choisi par KP_LP
+    float z;          // Valeur de la solution greedy (KP_greedy)
+    float z_prime;    // Valeur de la solution LP (KP_LP)
+
+    // Appel des algorithmes KP_greedy et KP_LP pour obtenir z et z'
+    z=KP_greedy(dsptr);  // Exécution de KP_greedy pour calculer z
+    z_prime, p=KP_LP(dsptr);      // Exécution de KP_LP pour calculer z' et recuperer indice critique p
+
+    // Récupérer les résultats de KP_greedy pour identifier l'indice p
+    // Supposons que KP_greedy mette à jour une variable globale ou retourne p
+
+
+    // Tableau temporaire pour stocker les coefficients modifiés c_j'
+    float* c_prime = (float*)malloc(sizeof(float) * n);
+
+    // Calcul des nouveaux coefficients c_j'
+    for (int j = 0; j < n; j++) {
+        // Calcul de c_j' = c_j - (c_p / a_p) * a_j
+        float ratio = (float)dsptr->c[p - 1] / dsptr->a[p - 1]; // Ratio c_p / a_p
+        c_prime[j] = fabs(dsptr->c[j] - ratio * dsptr->a[j]);
+    }
+
+    // Initialisation d'un tableau temporaire pour stocker les décisions x_j
+    int* x = (int*)malloc(sizeof(int) * n);
+    for (int j = 0; j < n; j++) {
+        x[j] = 0; // Initialisation à 0
+    }
+
+    // Appliquer les règles pour mettre à jour x_j et la capacité restante
+    for (int j = 0; j < n; j++) {
+        if (c_prime[j] >= z_prime - z) { // Vérification de la condition
+            if (j <= p - 1) { // Si j <= p - 1
+                x[j] = 1; // Mettre x_j = 1
+                b -= dsptr->a[j]; // Mettre à jour la capacité restante
+            } else { // Sinon, mettre x_j = 0
+                x[j] = 0;
+            }
+        }
+    }
+
+    // Affichage des nouveaux coefficients c_j'
+    printf("Coefficients modifiés (c'_1, c'_2, ..., c'_n):\n");
+    for (int j = 0; j < n; j++) {
+        printf("c'_%d: %.2f\n", j + 1, c_prime[j]);
+    }
+    // Affichage vecteur x_j '
+    printf("le vecteur x (x_1, x_2, ..., x_n):\n");
+        for (int j = 0; j < n; j++) {
+            printf("x'_%d: %d\n", j + 1, x[j]);
+        }
+
+    // Libération de la mémoire allouée
+    free(c_prime);
+    free(x);
+}
+
+
 
 
 

@@ -44,7 +44,9 @@ int KP_LP(dataSet* dsptr);
 
 
 //TP2
-int Recursive_Dynamic_programming(dataSet* dsptr);
-int knapsack_recursive(int capacity, int n, int* values, int* weights, int** memo);
+//int Recursive_Dynamic_programming(dataSet* dsptr);
+//int knapsack_recursive(int capacity, int n, int* values, int* weights, int** memo);
 
+//TP3
+void knapsack_variable_preprocessing(dataSet* dsptr);
 

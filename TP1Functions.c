@@ -5,6 +5,37 @@
 #include <sys/time.h>
 #include<stdio.h>
 
+void generateCSV(dataSet* dsptr, int* _x, int new_b) {
+    FILE* file = fopen("new_dataset.csv", "w");
+    if (file == NULL) {
+        printf("Error opening file for writing!\n");
+        return;
+    }
+
+    // Count the number of remaining objects (where _x[i] == -1)
+    int new_n = 0;
+    for (int i = 0; i < dsptr->n; i++) {
+        if (_x[i] == -1) {
+            new_n++;
+        }
+    }
+
+    // Write the new header with updated `n` and remaining capacity `b`
+    fprintf(file, "%d,%d\n", new_n, new_b);
+
+    // Write the remaining objects (only those with _x[i] == -1)
+    for (int i = 0; i < dsptr->n; i++) {
+        if (_x[i] == -1) {
+            fprintf(file, "%d,%d\n", dsptr->c[i], dsptr->a[i]);
+        }
+    }
+
+    fclose(file);
+    printf("New dataset saved as '%s' with %d objects and remaining capacity = %d.\n", "new_dataset", new_n, new_b);
+}
+
+
+
 // Helper function for sorting items by value-to-weight ratio
 int compare_items(const void *a, const void *b) {
     struct Item *itemA = (struct Item *)a;
@@ -136,7 +167,7 @@ int rval = 0;
     free(items);
     free(x);
 
-	return rval;
+	return total_value;
 }
 
 //Algorithm 1
@@ -204,7 +235,7 @@ int KP_LP(dataSet* dsptr)
     free(items);
     free(x);
 
-	return rval, p;
+	return total_value;
 }
 
 //------------------------------------------------------------------------------TP2-----------------------------------------------------------------------------------------------------------
@@ -239,65 +270,119 @@ int Recursive_Dynamic_programming(dataSet* dsptr) {
 
 //--------------------------------------------------------------- TP3 --------------------------------------------------------------------
 
-// Fonction pour appliquer l'algorithme Knapsack - Variable Preprocessing
+// Fonction principale pour le prétraitement des variables du problème du sac-à-dos
 void knapsack_variable_preprocessing(dataSet* dsptr) {
-    int n = dsptr->n; // Nombre d'objets
-    int b = dsptr->b; // Capacité du sac-à-dos
-    int p;            // Indice de l'objet choisi par KP_LP
-    float z;          // Valeur de la solution greedy (KP_greedy)
-    float z_prime;    // Valeur de la solution LP (KP_LP)
+    int n = dsptr->n;
+    int b = dsptr->b;
 
-    // Appel des algorithmes KP_greedy et KP_LP pour obtenir z et z'
-    z=KP_greedy(dsptr);  // Exécution de KP_greedy pour calculer z
-    z_prime, p=KP_LP(dsptr);      // Exécution de KP_LP pour calculer z' et recuperer indice critique p
+        struct Item* items = (struct Item*)malloc(sizeof(struct Item) * n);
+        for (int i = 0; i < n; i++) {
+            items[i].value = dsptr->c[i];
+            items[i].weight = dsptr->a[i];
+            items[i].ratio = (float)dsptr->c[i] / dsptr->a[i];
+        }
 
-    // Récupérer les résultats de KP_greedy pour identifier l'indice p
-    // Supposons que KP_greedy mette à jour une variable globale ou retourne p
+        qsort(items, n, sizeof(struct Item), compare_items);
 
-
-    // Tableau temporaire pour stocker les coefficients modifiés c_j'
-    float* c_prime = (float*)malloc(sizeof(float) * n);
-
-    // Calcul des nouveaux coefficients c_j'
-    for (int j = 0; j < n; j++) {
-        // Calcul de c_j' = c_j - (c_p / a_p) * a_j
-        float ratio = (float)dsptr->c[p - 1] / dsptr->a[p - 1]; // Ratio c_p / a_p
-        c_prime[j] = fabs(dsptr->c[j] - ratio * dsptr->a[j]);
-    }
-
-    // Initialisation d'un tableau temporaire pour stocker les décisions x_j
-    int* x = (int*)malloc(sizeof(int) * n);
-    for (int j = 0; j < n; j++) {
-        x[j] = 0; // Initialisation à 0
-    }
-
-    // Appliquer les règles pour mettre à jour x_j et la capacité restante
-    for (int j = 0; j < n; j++) {
-        if (c_prime[j] >= z_prime - z) { // Vérification de la condition
-            if (j <= p - 1) { // Si j <= p - 1
-                x[j] = 1; // Mettre x_j = 1
-                b -= dsptr->a[j]; // Mettre à jour la capacité restante
-            } else { // Sinon, mettre x_j = 0
-                x[j] = 0;
+        // Finding the p value (where we exceed capacity)
+        int p_value = -1, remaining_capacity = 0;
+        for (int i = 0; i < n; i++) {
+            remaining_capacity += items[i].weight;
+            if (remaining_capacity > b) {
+                p_value = i + 1;
+                break;
             }
         }
-    }
 
-    // Affichage des nouveaux coefficients c_j'
-    printf("Coefficients modifiés (c'_1, c'_2, ..., c'_n):\n");
-    for (int j = 0; j < n; j++) {
-        printf("c'_%d: %.2f\n", j + 1, c_prime[j]);
-    }
-    // Affichage vecteur x_j '
-    printf("le vecteur x (x_1, x_2, ..., x_n):\n");
-        for (int j = 0; j < n; j++) {
-            printf("x'_%d: %d\n", j + 1, x[j]);
+        if (p_value == -1) {
+            printf("No variable to preprocess.\n");
+            free(items);
+            return;
         }
 
-    // Libération de la mémoire allouée
-    free(c_prime);
-    free(x);
-}
+        printf("The p value is: %d\n\n", p_value);
+
+        // Compute z_x (Greedy) and z_bar (LP Relaxation)
+        float z_x = KP_greedy(dsptr);
+        float z_bar = KP_LP(dsptr);
+        float threshold = z_bar - z_x;
+        printf("The threshold value is: %.2f\n\n", threshold);
+
+        float* x = (float*)malloc(sizeof(float) * n);
+        int* _x = (int*)malloc(sizeof(int) * n);
+        int used_capacity = 0;
+        int remaining_items = 0; // Count items that remain (_x[i] == -1)
+
+        // calculating the _cj values
+        for (int i = 0; i < n; i++) {
+            // storing the _cj value in the x array
+            x[i] = fabs( items[i].value - items[i].weight * ( items[p_value-1].ratio ));
+            printf("_c%d = |%d - %d * %.2f| = %.2f\n", i + 1, items[i].value, items[i].weight, items[p_value-1].ratio, x[i]);
+        }
+
+        // Calculate _x[i] values
+        for (int i = 0; i < n; i++) {
+            if (x[i] >= threshold) {
+                if (i < p_value - 1) {
+                    _x[i] = 1;
+                    used_capacity += items[i].weight;
+                } else {
+                    _x[i] = 0;
+                }
+            } else {
+                _x[i] = -1;
+                remaining_items++;
+            }
+        }
+
+        // Print the _x array
+        printf("Updated _x values:\n");
+        for (int i = 0; i < n; i++) {
+            printf("_X[%d] = %d\n", i + 1, _x[i]);
+        }
+
+        // Compute new remaining capacity
+        int new_b = dsptr->b - used_capacity;
+        printf("Updated remaining capacity: %d\n", new_b);
+
+        // Stop recursion if there are no more items to process OR capacity doesn't change
+        if (remaining_items == 0 || new_b <= 0 || new_b == dsptr->b) {
+            printf("Stopping recursion: No remaining items or knapsack is full.\n");
+            free(items);
+            free(x);
+            free(_x);
+            return;
+        }
+
+        // Generate new dataset and call recursively
+        printf("Remaining capacity in knapsack: %d\n", new_b);
+        generateCSV(dsptr, _x, new_b);
+
+        FILE* newFile = fopen("new_dataset.csv", "r");
+        if (newFile != NULL) {
+            dataSet data;
+
+            char instance_file[1024];
+            snprintf(instance_file, 1024, "%s", "new_dataset.csv");
+            //Open the instance file
+            FILE* fin = fopen(instance_file,"r");
+            read_TP1_instance(fin,&data);
+            fclose(fin);
+
+            knapsack_variable_preprocessing(&data); // Recursive call
+
+            // Free allocated memory for the new dataset
+            free(data.c);
+            free(data.a);
+        } else {
+            printf("Error opening new dataset file!\n");
+        }
+
+        free(items);
+        free(x);
+        free(_x);
+    }
+
 
 
 
